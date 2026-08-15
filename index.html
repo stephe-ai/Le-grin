@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Le Grin</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+  :root{
+    --nuit:#14141F; --nuit2:#1B1B2C; --braise:#D2491F; --or:#F0A93A; --foret:#1F5C42; --creme:#F5EBD8;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{background:#0A0A12; height:100%;}
+  body{font-family:Georgia,serif; color:var(--creme); display:flex; justify-content:center; -webkit-font-smoothing:antialiased;}
+  button,input,textarea{font-family:Arial,Helvetica,sans-serif;}
+  ::-webkit-scrollbar{width:0;}
+  #app{width:100%; max-width:430px; min-height:100vh; background:radial-gradient(circle at 15% 0%, rgba(210,73,31,0.22), transparent 45%), radial-gradient(circle at 100% 15%, rgba(240,169,58,0.13), transparent 40%), var(--nuit); position:relative; overflow:hidden; display:flex; flex-direction:column;}
+  .view{display:none; flex-direction:column; flex:1; min-height:100vh;}
+  .view.active{display:flex;}
+  .hidden{display:none !important;}
+
+  #onboard{justify-content:center; padding:40px 26px;}
+  #onboard .eyebrow{font-family:Arial,sans-serif; font-size:10.5px; letter-spacing:3px; color:var(--or); font-weight:700;}
+  #onboard h1{font-size:42px; font-weight:800; color:var(--or); margin:10px 0 6px; line-height:0.95;}
+  #onboard .sub{font-style:italic; font-size:14px; color:#B8AFA0; margin-bottom:34px;}
+  .field{margin-bottom:16px;}
+  .field label{font-family:Arial,sans-serif; font-size:11px; letter-spacing:1px; color:#9C93A8; font-weight:700; display:block; margin-bottom:7px;}
+  .field input{width:100%; background:var(--nuit2); border:1.5px solid rgba(240,169,58,0.3); border-radius:12px; padding:14px 16px; color:var(--creme); font-size:15px;}
+  .field input:focus{outline:none; border-color:var(--or);}
+  .primary-btn{width:100%; background:linear-gradient(120deg,var(--or),var(--braise)); color:var(--nuit); border:none; border-radius:999px; padding:16px 0; font-weight:800; font-size:14.5px; font-family:Arial,sans-serif; box-shadow:0 6px 0 rgba(150,50,10,0.5); margin-top:8px;}
+  .primary-btn:active{transform:translateY(4px); box-shadow:none;}
+  .primary-btn:disabled{opacity:0.5;}
+  .note{font-family:Arial,sans-serif; font-size:11px; color:#6E667A; margin-top:16px; line-height:1.5; text-align:center;}
+
+  .topbar{padding:22px 20px 14px; display:flex; align-items:center; justify-content:space-between;}
+  .topbar h1{font-size:28px; font-weight:800; color:var(--or);}
+  .avatar-me{width:38px; height:38px; border-radius:50%; background:linear-gradient(135deg,var(--or),var(--braise)); display:flex; align-items:center; justify-content:center; font-weight:800; color:var(--nuit); font-family:Arial,sans-serif; font-size:14px;}
+
+  .tabs{display:flex; border-bottom:1.5px solid rgba(240,169,58,0.15); padding:0 16px;}
+  .tab{flex:1; text-align:center; padding:12px 0; font-family:Arial,sans-serif; font-size:12px; font-weight:700; color:#6E667A; border-bottom:2px solid transparent; background:none; border-top:none; border-left:none; border-right:none;}
+  .tab.active{color:var(--or); border-bottom-color:var(--or);}
+
+  .content{flex:1; overflow-y:auto; padding:16px; padding-bottom:100px;}
+  .empty{text-align:center; padding:60px 20px; font-family:Arial,sans-serif; color:#6E667A; font-size:13px; line-height:1.6;}
+
+  .row{display:flex; align-items:center; gap:12px; padding:12px 6px; border-bottom:1px solid rgba(240,169,58,0.08); cursor:pointer;}
+  .row .av{width:46px; height:46px; border-radius:50%; background:linear-gradient(135deg,var(--or),var(--braise)); display:flex; align-items:center; justify-content:center; font-weight:800; color:var(--nuit); font-family:Arial,sans-serif; font-size:16px; flex-shrink:0;}
+  .row .info{flex:1; min-width:0;}
+  .row .info .name{font-family:Arial,sans-serif; font-size:14.5px; font-weight:700; color:var(--creme);}
+  .row .info .last{font-family:Arial,sans-serif; font-size:12px; color:#9C93A8; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+
+  .stories-row{display:flex; gap:14px; overflow-x:auto; padding-bottom:6px; margin-bottom:8px;}
+  .story-bubble{display:flex; flex-direction:column; align-items:center; gap:6px; flex-shrink:0; width:62px;}
+  .story-bubble .ring{width:56px; height:56px; border-radius:50%; padding:2.5px; background:linear-gradient(135deg,var(--or),var(--braise)); display:flex; align-items:center; justify-content:center;}
+  .story-bubble .ring .inner{width:100%; height:100%; border-radius:50%; background:var(--nuit2); display:flex; align-items:center; justify-content:center; font-weight:800; color:var(--or); font-family:Arial,sans-serif; font-size:16px;}
+  .story-bubble .lbl{font-family:Arial,sans-serif; font-size:10px; color:#B8AFA0; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; width:60px;}
+
+  .card{position:relative; background:var(--nuit2); border:1.5px solid rgba(240,169,58,0.16); border-radius:16px; padding:16px; margin-bottom:14px; cursor:pointer; box-shadow:5px 5px 0 rgba(0,0,0,0.22);}
+  .card h3{font-size:17px; font-weight:600; line-height:1.25;}
+  .card .meta{font-family:Arial,sans-serif; display:flex; gap:12px; margin-top:10px; font-size:11.5px; color:#B8AFA0;}
+  .dot-live{width:6px; height:6px; border-radius:50%; background:var(--braise); display:inline-block; margin-right:4px;}
+
+  .fab-wrap{position:absolute; bottom:78px; right:18px; z-index:5;}
+  .fab{background:linear-gradient(120deg,var(--or),var(--braise)); color:var(--nuit); border:none; border-radius:999px; padding:14px 20px; font-weight:800; font-size:13px; font-family:Arial,sans-serif; box-shadow:0 6px 0 rgba(150,50,10,0.5), 0 10px 20px rgba(210,73,31,0.3);}
+
+  .bottomnav{position:absolute; bottom:0; left:0; right:0; background:var(--nuit2); border-top:1.5px solid rgba(240,169,58,0.15); display:flex; padding:8px 6px 12px;}
+  .navbtn{flex:1; background:none; border:none; display:flex; flex-direction:column; align-items:center; gap:3px; font-family:Arial,sans-serif; font-size:10px; color:#6E667A; font-weight:700; padding:6px 0;}
+  .navbtn.active{color:var(--or);}
+  .navbtn .ic{font-size:18px;}
+
+  .chat-header{padding:18px; border-bottom:1.5px solid rgba(240,169,58,0.15); display:flex; align-items:center; gap:12px;}
+  .back{background:none; border:none; color:var(--or); font-size:20px; font-family:Arial,sans-serif;}
+  .chat-header .av{width:38px; height:38px; border-radius:50%; background:linear-gradient(135deg,var(--or),var(--braise)); display:flex; align-items:center; justify-content:center; font-weight:800; color:var(--nuit); font-family:Arial,sans-serif; font-size:14px;}
+  .chat-header .name{font-family:Arial,sans-serif; font-weight:700; font-size:15px;}
+  .chatlog{flex:1; overflow-y:auto; padding:16px 14px; display:flex; flex-direction:column; gap:8px;}
+  .bubble{max-width:78%; padding:10px 13px; border-radius:14px; font-family:Arial,sans-serif; font-size:13.5px; line-height:1.4;}
+  .bubble.me{align-self:flex-end; background:linear-gradient(120deg,var(--or),var(--braise)); color:var(--nuit); border-bottom-right-radius:4px;}
+  .bubble.them{align-self:flex-start; background:var(--nuit2); border:1px solid rgba(240,169,58,0.15); border-bottom-left-radius:4px;}
+  .bubble.tip{align-self:center; background:rgba(240,169,58,0.1); border:1px solid var(--or); color:var(--or); font-weight:700; font-size:12px;}
+  .composer{padding:12px; border-top:1.5px solid rgba(240,169,58,0.15); display:flex; gap:9px; align-items:center;}
+  .composer input{flex:1; background:var(--nuit2); border:1.5px solid rgba(240,169,58,0.2); border-radius:999px; padding:12px 16px; color:var(--creme); font-size:13.5px;}
+  .roundbtn{background:rgba(240,169,58,0.14); border:1.5px solid var(--or); border-radius:50%; width:44px; height:44px; flex-shrink:0; display:flex; align-items:center; justify-content:center; color:var(--or); font-size:16px;}
+  .tipround{background:linear-gradient(135deg,var(--or),var(--braise)); color:var(--nuit); border:none;}
+
+  .overlay{position:absolute; inset:0; background:rgba(5,5,10,0.65); display:flex; align-items:flex-end; z-index:50; opacity:0; pointer-events:none; transition:opacity .2s;}
+  .overlay.open{opacity:1; pointer-events:all;}
+  .sheet{width:100%; background:var(--nuit2); border-top:2px solid var(--or); border-radius:22px 22px 0 0; padding:24px 20px 28px; transform:translateY(100%); transition:transform .25s;}
+  .overlay.open .sheet{transform:translateY(0);}
+  .sheet h3{font-size:19px; font-weight:700; margin-bottom:14px;}
+  .sheet textarea{width:100%; background:var(--nuit); border:1.5px solid rgba(240,169,58,0.25); border-radius:12px; padding:12px 14px; color:var(--creme); font-family:Arial,sans-serif; font-size:13.5px; min-height:80px; resize:none;}
+  .amounts{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:14px 0;}
+  .amt-btn{background:rgba(240,169,58,0.08); border:1.5px solid var(--or); border-radius:12px; padding:14px 0; color:var(--creme); font-weight:800; font-size:14px; font-family:Arial,sans-serif;}
+
+  .toast{position:absolute; bottom:96px; left:16px; right:16px; z-index:60; background:var(--foret); color:var(--creme); padding:12px 16px; border-radius:12px; font-family:Arial,sans-serif; font-size:12.5px; text-align:center; font-weight:600; box-shadow:0 10px 26px rgba(0,0,0,0.4); transform:translateY(20px); opacity:0; transition:all .25s; display:none;}
+  .toast.show{transform:translateY(0); opacity:1; display:block;}
+  .toast.error{background:#5A2323;}
+  .closeX{background:none; border:none; color:#9C93A8; font-size:20px; float:right;}
+  .setup-warning{padding:40px 24px; font-family:Arial,sans-serif; text-align:center;}
+  .setup-warning h2{color:var(--braise); font-size:18px; margin-bottom:12px;}
+  .setup-warning p{color:#B8AFA0; font-size:13px; line-height:1.7;}
+  .setup-warning code{background:var(--nuit2); padding:2px 6px; border-radius:4px; color:var(--or);}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ===== ÉCRAN AFFICHÉ SI FIREBASE N'EST PAS CONFIGURÉ ===== -->
+  <div class="view active" id="setup-screen">
+    <div class="setup-warning">
+      <h2>⚠️ Configuration requise</h2>
+      <p>
+        Pour que Le Grin fonctionne réellement entre plusieurs personnes, ouvre ce fichier dans un éditeur de texte,
+        cherche <code>FIREBASE_CONFIG</code> tout en haut du <code>&lt;script&gt;</code>, et remplace-le par les clés
+        de ton propre projet Firebase (gratuit sur console.firebase.google.com → Firestore Database → mode test).
+      </p>
+    </div>
+  </div>
+
+  <!-- ===== ONBOARDING ===== -->
+  <div class="view" id="onboard">
+    <div class="eyebrow">BIENVENUE</div>
+    <h1>Le Grin</h1>
+    <div class="sub">Cause. Partage. Retrouve les tiens.</div>
+    <div class="field">
+      <label>TON NUMÉRO</label>
+      <input id="reg-phone" type="tel" placeholder="+225 07 00 00 00 00" />
+    </div>
+    <div class="field">
+      <label>TON PRÉNOM</label>
+      <input id="reg-name" type="text" placeholder="Ex : Aïcha" />
+    </div>
+    <button class="primary-btn" id="reg-submit">S'inscrire</button>
+    <div class="note">Ton numéro sert d'identifiant (pas de SMS de vérification). Une fois hébergé, ce carnet d'adresses est partagé par tous ceux qui visitent le site.</div>
+  </div>
+
+  <!-- ===== HOME ===== -->
+  <div class="view" id="home">
+    <div class="topbar">
+      <h1>Le Grin</h1>
+      <div class="avatar-me" id="me-avatar">?</div>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-tab="discussions">Discussions</button>
+      <button class="tab" data-tab="stories">Statuts</button>
+      <button class="tab" data-tab="grins">Grins</button>
+    </div>
+
+    <div class="content" id="tab-discussions"></div>
+    <div class="content hidden" id="tab-stories"></div>
+    <div class="content hidden" id="tab-grins"></div>
+
+    <div class="fab-wrap hidden" id="fab-story-wrap"><button class="fab" id="fab-story">✎ Statut</button></div>
+    <div class="fab-wrap hidden" id="fab-grin-wrap"><button class="fab" id="fab-grin">✦ Ouvrir un grin</button></div>
+
+    <div class="bottomnav">
+      <button class="navbtn active" data-tab="discussions"><span class="ic">💬</span>Discussions</button>
+      <button class="navbtn" data-tab="stories"><span class="ic">◎</span>Statuts</button>
+      <button class="navbtn" data-tab="grins"><span class="ic">🔥</span>Grins</button>
+      <button class="navbtn" id="nav-profil"><span class="ic">👤</span>Profil</button>
+    </div>
+  </div>
+
+  <!-- ===== CHAT 1:1 ===== -->
+  <div class="view" id="chat1">
+    <div class="chat-header">
+      <button class="back" id="chat1-back">←</button>
+      <div class="av" id="chat1-av">?</div>
+      <div class="name" id="chat1-name"></div>
+    </div>
+    <div class="chatlog" id="chat1-log"></div>
+    <div class="composer">
+      <input id="chat1-input" placeholder="Écris un message..." />
+      <button class="roundbtn" id="chat1-send">➤</button>
+    </div>
+  </div>
+
+  <!-- ===== GRIN ROOM ===== -->
+  <div class="view" id="grinroom">
+    <div class="chat-header">
+      <button class="back" id="grin-back">←</button>
+      <div style="flex:1;">
+        <div class="name" id="grin-name"></div>
+        <div style="font-family:Arial,sans-serif; font-size:11px; color:#9C93A8; margin-top:2px;" id="grin-host"></div>
+      </div>
+    </div>
+    <div class="chatlog" id="grin-log"></div>
+    <div class="composer">
+      <button class="roundbtn tipround" id="grin-tip">🔥</button>
+      <input id="grin-input" placeholder="Écris un message..." />
+      <button class="roundbtn" id="grin-send">➤</button>
+    </div>
+  </div>
+
+  <!-- ===== PROFIL ===== -->
+  <div class="view" id="profil">
+    <div class="chat-header">
+      <button class="back" id="profil-back">←</button>
+      <div class="name">Profil</div>
+    </div>
+    <div class="content">
+      <div style="text-align:center; padding:20px 0;">
+        <div class="avatar-me" style="width:80px; height:80px; font-size:30px; margin:0 auto 14px;" id="profil-avatar">?</div>
+        <div style="font-family:Arial,sans-serif; font-size:19px; font-weight:800;" id="profil-name"></div>
+        <div style="font-family:Arial,sans-serif; font-size:13px; color:#9C93A8; margin-top:4px;" id="profil-phone"></div>
+      </div>
+      <div style="background:var(--nuit2); border:1.5px solid rgba(240,169,58,0.3); border-radius:14px; padding:16px; text-align:center; margin:20px 0;">
+        <div style="font-family:Arial,sans-serif; font-size:10px; letter-spacing:1.5px; color:#9C93A8; font-weight:700;">WALLET</div>
+        <div style="font-size:26px; font-weight:700; color:var(--or); margin-top:4px;" id="profil-wallet"></div>
+      </div>
+      <button class="primary-btn" id="logout-btn" style="background:transparent; border:1.5px solid var(--braise); color:var(--braise); box-shadow:none;">Se déconnecter de cet appareil</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="story-overlay">
+    <div class="sheet">
+      <button class="closeX" id="story-close">×</button>
+      <h3>Nouveau statut</h3>
+      <textarea id="story-text" placeholder="Quoi de neuf ?"></textarea>
+      <button class="primary-btn" id="story-submit">Publier</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="grin-create-overlay">
+    <div class="sheet">
+      <button class="closeX" id="grin-create-close">×</button>
+      <h3>Ouvrir un grin</h3>
+      <div class="field"><input id="grin-title-input" placeholder="Titre du grin..." /></div>
+      <button class="primary-btn" id="grin-create-submit">Lancer</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="tip-overlay">
+    <div class="sheet">
+      <button class="closeX" id="tip-close">×</button>
+      <h3>Envoyer un pourboire</h3>
+      <div class="amounts">
+        <button class="amt-btn" data-amt="100">100 F</button>
+        <button class="amt-btn" data-amt="500">500 F</button>
+        <button class="amt-btn" data-amt="1000">1 000 F</button>
+        <button class="amt-btn" data-amt="2000">2 000 F</button>
+      </div>
+      <div class="note">Simulé pour l'instant — se branche sur Wave / Orange Money pour du vrai.</div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+  // ============================================================
+  //  ⚠️ REMPLACE CES VALEURS PAR CELLES DE TON PROJET FIREBASE
+  //  (Console Firebase → Paramètres du projet → Vos applications → Config)
+  // ============================================================
+  var FIREBASE_CONFIG = {
+    apiKey: "AIzaSyDOhFvY9YKydUrr3bsrs446H290nrk4DEQ",
+    authDomain: "le-grin-2fc4a.firebaseapp.com",
+    projectId: "le-grin-2fc4a",
+    storageBucket: "le-grin-2fc4a.firebasestorage.app",
+    messagingSenderId: "441610549268",
+    appId: "1:441610549268:web:6ddd5f4d20df8c3a7c4f01"
+  };
+  // ============================================================
+
+  var db = null;
+  var configured = FIREBASE_CONFIG.apiKey !== "COLLE_TA_CLE_ICI";
+  if(configured){
+    try{
+      firebase.initializeApp(FIREBASE_CONFIG);
+      db = firebase.firestore();
+    }catch(e){ configured = false; }
+  }
+
+  var me = null;
+  var wallet = 2500;
+  var currentChatPhone = null;
+  var currentGrinId = null;
+  var unsubChat1 = null;
+  var unsubGrin = null;
+
+  function initials(name){ return (name || "?").trim().charAt(0).toUpperCase(); }
+  function fmt(n){ return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " "); }
+  function chatKey(a,b){ return [a,b].sort().join("_"); }
+  function showToast(text, error){
+    var t = document.getElementById("toast");
+    t.textContent = text;
+    t.className = "toast show" + (error ? " error" : "");
+    setTimeout(function(){ t.className = "toast" + (error ? " error" : ""); }, 2200);
+  }
+  function showView(id){
+    document.querySelectorAll(".view").forEach(function(v){ v.classList.remove("active"); });
+    document.getElementById(id).classList.add("active");
+  }
+
+  if(!configured){
+    showView("setup-screen");
+  } else {
+    boot();
+  }
+
+  function boot(){
+    var savedMe = localStorage.getItem("legrin_me");
+    var savedWallet = localStorage.getItem("legrin_wallet");
+    if(savedWallet) wallet = parseInt(savedWallet, 10);
+    if(savedMe){
+      me = JSON.parse(savedMe);
+      enterApp();
+    } else {
+      showView("onboard");
+    }
+  }
+
+  document.getElementById("reg-submit").addEventListener("click", function(){
+    var phone = document.getElementById("reg-phone").value.trim();
+    var name = document.getElementById("reg-name").value.trim();
+    if(!phone || !name){ showToast("Renseigne ton numéro et ton prénom", true); return; }
+    me = {phone: phone, name: name};
+    localStorage.setItem("legrin_me", JSON.stringify(me));
+    localStorage.setItem("legrin_wallet", wallet);
+    db.collection("directory").doc(phone).set({phone: phone, name: name, joinedAt: Date.now()}, {merge:true})
+      .then(enterApp)
+      .catch(function(err){ showToast("Erreur : vérifie ta config Firebase", true); console.error(err); });
+  });
+
+  function enterApp(){
+    document.getElementById("me-avatar").textContent = initials(me.name);
+    showView("home");
+    switchTab("discussions");
+    listenDirectory();
+    listenStories();
+    listenGrins();
+  }
+
+  document.getElementById("logout-btn").addEventListener("click", function(){
+    localStorage.removeItem("legrin_me");
+    location.reload();
+  });
+
+  // ---------- tabs ----------
+  function switchTab(tab){
+    document.querySelectorAll(".tab").forEach(function(t){ t.classList.toggle("active", t.dataset.tab === tab); });
+    document.querySelectorAll(".navbtn[data-tab]").forEach(function(t){ t.classList.toggle("active", t.dataset.tab === tab); });
+    ["discussions","stories","grins"].forEach(function(t){
+      document.getElementById("tab-" + t).classList.toggle("hidden", t !== tab);
+    });
+    document.getElementById("fab-story-wrap").classList.toggle("hidden", tab !== "stories");
+    document.getElementById("fab-grin-wrap").classList.toggle("hidden", tab !== "grins");
+  }
+  document.querySelectorAll(".tab, .navbtn[data-tab]").forEach(function(el){
+    el.addEventListener("click", function(){ switchTab(el.dataset.tab); });
+  });
+  document.getElementById("nav-profil").addEventListener("click", function(){
+    document.getElementById("profil-avatar").textContent = initials(me.name);
+    document.getElementById("profil-name").textContent = me.name;
+    document.getElementById("profil-phone").textContent = me.phone;
+    document.getElementById("profil-wallet").textContent = fmt(wallet) + " F";
+    showView("profil");
+  });
+  document.getElementById("profil-back").addEventListener("click", function(){ showView("home"); });
+
+  // ---------- discussions (temps réel) ----------
+  function listenDirectory(){
+    db.collection("directory").onSnapshot(function(snap){
+      var users = [];
+      snap.forEach(function(doc){ if(doc.id !== me.phone) users.push(doc.data()); });
+      var el = document.getElementById("tab-discussions");
+      if(users.length === 0){
+        el.innerHTML = '<div class="empty">Personne d\'autre n\'est encore inscrit.<br>Partage le lien du site à tes amis !</div>';
+        return;
+      }
+      el.innerHTML = "";
+      users.forEach(function(u){
+        var row = document.createElement("div");
+        row.className = "row";
+        row.innerHTML = '<div class="av">' + initials(u.name) + '</div><div class="info"><div class="name">' + u.name + '</div><div class="last">Toucher pour discuter</div></div>';
+        row.addEventListener("click", function(){ openChat(u); });
+        el.appendChild(row);
+      });
+    });
+  }
+
+  function openChat(user){
+    currentChatPhone = user.phone;
+    document.getElementById("chat1-av").textContent = initials(user.name);
+    document.getElementById("chat1-name").textContent = user.name;
+    showView("chat1");
+    if(unsubChat1) unsubChat1();
+    var key = chatKey(me.phone, user.phone);
+    unsubChat1 = db.collection("chats").doc(key).collection("messages").orderBy("ts")
+      .onSnapshot(function(snap){
+        var log = document.getElementById("chat1-log");
+        log.innerHTML = "";
+        if(snap.empty){ log.innerHTML = '<div class="empty">Dis bonjour 👋</div>'; }
+        snap.forEach(function(doc){
+          var m = doc.data();
+          var b = document.createElement("div");
+          b.className = "bubble " + (m.from === me.phone ? "me" : "them");
+          b.textContent = m.text;
+          log.appendChild(b);
+        });
+        log.scrollTop = log.scrollHeight;
+      });
+  }
+  document.getElementById("chat1-back").addEventListener("click", function(){
+    if(unsubChat1) unsubChat1();
+    currentChatPhone = null;
+    showView("home");
+  });
+  document.getElementById("chat1-send").addEventListener("click", sendChat1);
+  document.getElementById("chat1-input").addEventListener("keydown", function(e){ if(e.key === "Enter") sendChat1(); });
+  function sendChat1(){
+    var input = document.getElementById("chat1-input");
+    var text = input.value.trim();
+    if(!text || !currentChatPhone) return;
+    input.value = "";
+    var key = chatKey(me.phone, currentChatPhone);
+    db.collection("chats").doc(key).collection("messages").add({from: me.phone, text: text, ts: Date.now()});
+  }
+
+  // ---------- stories (temps réel) ----------
+  function listenStories(){
+    db.collection("stories").onSnapshot(function(snap){
+      var since = Date.now() - 24*3600*1000;
+      var stories = [];
+      snap.forEach(function(doc){ var s = doc.data(); if(s.ts > since) stories.push(s); });
+      var el = document.getElementById("tab-stories");
+      if(stories.length === 0){
+        el.innerHTML = '<div class="empty">Aucun statut publié.<br>Sois le premier à partager quelque chose !</div>';
+        return;
+      }
+      el.innerHTML = "";
+      stories.sort(function(a,b){ return b.ts - a.ts; }).forEach(function(s){
+        var card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = '<div style="color:var(--or); font-family:Arial,sans-serif; font-size:10px; letter-spacing:1px;">' + s.name.toUpperCase() + '</div><h3 style="font-family:Arial,sans-serif; font-size:14px; margin-top:6px;">' + s.text + '</h3>';
+        el.appendChild(card);
+      });
+    });
+  }
+  document.getElementById("fab-story").addEventListener("click", function(){ document.getElementById("story-overlay").className = "overlay open"; });
+  document.getElementById("story-close").addEventListener("click", function(){ document.getElementById("story-overlay").className = "overlay"; });
+  document.getElementById("story-submit").addEventListener("click", function(){
+    var txt = document.getElementById("story-text").value.trim();
+    if(!txt) return;
+    db.collection("stories").add({phone: me.phone, name: me.name, text: txt, ts: Date.now()}).then(function(){
+      document.getElementById("story-text").value = "";
+      document.getElementById("story-overlay").className = "overlay";
+      showToast("Statut publié ✅");
+    });
+  });
+
+  // ---------- grins (temps réel) ----------
+  function listenGrins(){
+    db.collection("grins").onSnapshot(function(snap){
+      var grins = [];
+      snap.forEach(function(doc){ grins.push(Object.assign({id: doc.id}, doc.data())); });
+      var el = document.getElementById("tab-grins");
+      if(grins.length === 0){
+        el.innerHTML = '<div class="empty">Aucun grin ouvert.<br>Sois le premier à en lancer un !</div>';
+        return;
+      }
+      el.innerHTML = "";
+      grins.sort(function(a,b){ return b.createdAt - a.createdAt; }).forEach(function(g){
+        var card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = '<h3>' + g.title + '</h3><div class="meta"><span><span class="dot-live"></span>ouvert par ' + g.host + '</span></div>';
+        card.addEventListener("click", function(){ openGrin(g); });
+        el.appendChild(card);
+      });
+    });
+  }
+  document.getElementById("fab-grin").addEventListener("click", function(){ document.getElementById("grin-create-overlay").className = "overlay open"; });
+  document.getElementById("grin-create-close").addEventListener("click", function(){ document.getElementById("grin-create-overlay").className = "overlay"; });
+  document.getElementById("grin-create-submit").addEventListener("click", function(){
+    var title = document.getElementById("grin-title-input").value.trim();
+    if(!title) return;
+    db.collection("grins").add({title: title, host: me.name, hostPhone: me.phone, createdAt: Date.now()}).then(function(ref){
+      document.getElementById("grin-title-input").value = "";
+      document.getElementById("grin-create-overlay").className = "overlay";
+      openGrin({id: ref.id, title: title, host: me.name});
+    });
+  });
+
+  function openGrin(g){
+    currentGrinId = g.id;
+    document.getElementById("grin-name").textContent = g.title;
+    document.getElementById("grin-host").textContent = "Ouvert par " + g.host;
+    showView("grinroom");
+    if(unsubGrin) unsubGrin();
+    unsubGrin = db.collection("grins").doc(g.id).collection("messages").orderBy("ts").onSnapshot(function(snap){
+      var log = document.getElementById("grin-log");
+      log.innerHTML = "";
+      if(snap.empty){ log.innerHTML = '<div class="empty">Le grin vient d\'ouvrir. Lance la discussion 🔥</div>'; }
+      snap.forEach(function(doc){
+        var m = doc.data();
+        var b = document.createElement("div");
+        if(m.tip){
+          b.className = "bubble tip";
+          b.textContent = m.text;
+        } else {
+          b.className = "bubble " + (m.from === me.phone ? "me" : "them");
+          b.textContent = (m.from === me.phone ? "" : m.name + " : ") + m.text;
+        }
+        log.appendChild(b);
+      });
+      log.scrollTop = log.scrollHeight;
+    });
+  }
+  document.getElementById("grin-back").addEventListener("click", function(){
+    if(unsubGrin) unsubGrin();
+    currentGrinId = null;
+    showView("home");
+  });
+  document.getElementById("grin-send").addEventListener("click", sendGrin);
+  document.getElementById("grin-input").addEventListener("keydown", function(e){ if(e.key === "Enter") sendGrin(); });
+  function sendGrin(){
+    var input = document.getElementById("grin-input");
+    var text = input.value.trim();
+    if(!text || !currentGrinId) return;
+    input.value = "";
+    db.collection("grins").doc(currentGrinId).collection("messages").add({from: me.phone, name: me.name, text: text, ts: Date.now()});
+  }
+
+  document.getElementById("grin-tip").addEventListener("click", function(){ document.getElementById("tip-overlay").className = "overlay open"; });
+  document.getElementById("tip-close").addEventListener("click", function(){ document.getElementById("tip-overlay").className = "overlay"; });
+  document.querySelectorAll(".amt-btn").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      var amt = parseInt(btn.getAttribute("data-amt"), 10);
+      if(wallet < amt){ showToast("Solde insuffisant", true); return; }
+      wallet -= amt;
+      localStorage.setItem("legrin_wallet", wallet);
+      db.collection("grins").doc(currentGrinId).collection("messages").add({tip:true, text: me.name + " a envoyé " + fmt(amt) + " FCFA 🎉", ts: Date.now()}).then(function(){
+        document.getElementById("tip-overlay").className = "overlay";
+        showToast(fmt(amt) + " FCFA envoyés (simulé) ✅");
+      });
+    });
+  });
+</script>
+</body>
+</html>
